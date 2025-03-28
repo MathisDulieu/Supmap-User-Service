@@ -1,0 +1,15 @@
+services:
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8080"
+    environment:
+      - PORT=${{ shared.PORT }}
+      - SPRING_DATASOURCE_URL=${{ shared.USER_DB_URL }}
+      - SPRING_DATASOURCE_USERNAME=${{ shared.USER_DB_USERNAME }}
+      - SPRING_DATASOURCE_PASSWORD=${{ shared.USER_DB_PASSWORD }}
+      - KAFKA_BOOTSTRAP_SERVERS=${{ shared.KAFKA_BOOTSTRAP_SERVERS }}
+      - DEFAULT_PROFILE_IMAGE=${{ shared.DEFAULT_PROFILE_IMAGE }}
+    restart: always
