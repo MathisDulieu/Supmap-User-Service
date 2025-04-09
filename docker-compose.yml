@@ -16,4 +16,7 @@ services:
       - MAIL_MODIFIED_USERNAME=${{ shared.MAIL_MODIFIED_USERNAME }}
       - MAIL_PASSWORD=${{ shared.MAIL_PASSWORD }}
       - MONGO_URI=${{ shared.MONGO_URI }}
+      - NEXUS_URL=${{ shared.NEXUS_URL }}
+      - NEXUS_USERNAME=${{ shared.NEXUS_USERNAME }}
+      - NEXUS_PASSWORD=${{ shared.NEXUS_PASSWORD }}
     restart: always

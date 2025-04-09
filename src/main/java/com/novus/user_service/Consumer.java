@@ -6,109 +6,88 @@ import com.novus.user_service.services.AccountManagementService;
 import com.novus.user_service.services.FeedbackService;
 import com.novus.user_service.services.UserProfileService;
 import com.novus.user_service.services.UserQueryService;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
-
-import java.time.Duration;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class Consumer {
 
-    private final KafkaConsumer<String, String> kafkaConsumer;
+    @Autowired
     private final ObjectMapper objectMapper;
+
     private final AccountManagementService accountManagementService;
     private final FeedbackService feedbackService;
     private final UserProfileService userProfileService;
     private final UserQueryService userQueryService;
 
-    private final AtomicBoolean running = new AtomicBoolean(false);
-    private Thread consumerThread;
+    @KafkaListener(topics = "user-service", groupId = "${spring.kafka.consumer.group-id}")
+    public void consumeAuthenticationEvents(
+            @Payload String messageJson,
+            @Header(KafkaHeaders.RECEIVED_KEY) String key,
+            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
+            @Header(KafkaHeaders.OFFSET) long offset,
+            Acknowledgment acknowledgment) {
 
-    @PostConstruct
-    public void startConsumer() {
-        running.set(true);
-        consumerThread = new Thread(this::consume);
-        consumerThread.start();
-        log.info("🚀 User Service Kafka Consumer started");
-    }
-
-    @PreDestroy
-    public void stopConsumer() {
-        running.set(false);
-        if (consumerThread != null) {
-            consumerThread.interrupt();
-        }
-        kafkaConsumer.close();
-        log.info("🛑 User Service Kafka Consumer stopped");
-    }
-
-    @Async("consumerTaskExecutor")
-    public void consume() {
         try {
-            while (running.get()) {
-                ConsumerRecords<String, String> records = kafkaConsumer.poll(Duration.ofMillis(100));
-                for (ConsumerRecord<String, String> record : records) {
-                    processMessage(record.key(), record.value());
-                }
-                kafkaConsumer.commitSync();
-            }
+            log.info("JSON message received from user-service topic [key: {}, partition: {}, offset: {}]", key, partition, offset);
+
+            KafkaMessage kafkaMessage = objectMapper.readValue(messageJson, KafkaMessage.class);
+
+            processMessage(key, kafkaMessage);
+
+            acknowledgment.acknowledge();
         } catch (Exception e) {
-            log.error("Error in Kafka consumer: {}", e.getMessage(), e);
+            log.error("Error processing message: {}", e.getMessage(), e);
+            acknowledgment.acknowledge();
         }
     }
 
-    private void processMessage(String key, String value) {
-        try {
-            log.info("Processing message with key: {}", key);
-            KafkaMessage kafkaMessage = objectMapper.readValue(value, KafkaMessage.class);
+    private void processMessage(String operationKey, KafkaMessage kafkaMessage) {
+        log.info("Processing operation: {}", operationKey);
 
-            switch (key) {
-                case "getAuthenticatedUserDetails":
-                    userProfileService.processGetAuthenticatedUserDetails(kafkaMessage);
-                    break;
-                case "deleteAuthenticatedUserAccount":
-                    accountManagementService.processDeleteAuthenticatedUserAccount(kafkaMessage);
-                    break;
-                case "setUserProfileImage":
-                    userProfileService.processSetUserProfileImage(kafkaMessage);
-                    break;
-                case "updateAuthenticatedUserDetails":
-                    userProfileService.processUpdateAuthenticatedUserDetails(kafkaMessage);
-                    break;
-                case "createAdminAccount":
-                    accountManagementService.processCreateAdminAccount(kafkaMessage);
-                    break;
-                case "deleteAdminAccount":
-                    accountManagementService.processDeleteAdminAccount(kafkaMessage);
-                    break;
-                case "getAllUsers":
-                    userQueryService.processGetAllUsers(kafkaMessage);
-                    break;
-                case "getUserAdminDashboardData":
-                    userQueryService.processGetUserAdminDashboardData(kafkaMessage);
-                    break;
-                case "rateApplication":
-                    feedbackService.processRateApplication(kafkaMessage);
-                    break;
-                case "updateUserLocation":
-                    userProfileService.processUpdateUserLocation(kafkaMessage);
-                    break;
-                default:
-                    log.warn("Unknown message key: {}", key);
-                    break;
-            }
-        } catch (Exception e) {
-            log.error("Error processing message with key {}: {}", key, e.getMessage(), e);
+        switch (operationKey) {
+            case "getAuthenticatedUserDetails":
+                userProfileService.processGetAuthenticatedUserDetails(kafkaMessage);
+                break;
+            case "deleteAuthenticatedUserAccount":
+                accountManagementService.processDeleteAuthenticatedUserAccount(kafkaMessage);
+                break;
+            case "setUserProfileImage":
+                userProfileService.processSetUserProfileImage(kafkaMessage);
+                break;
+            case "updateAuthenticatedUserDetails":
+                userProfileService.processUpdateAuthenticatedUserDetails(kafkaMessage);
+                break;
+            case "createAdminAccount":
+                accountManagementService.processCreateAdminAccount(kafkaMessage);
+                break;
+            case "deleteAdminAccount":
+                accountManagementService.processDeleteAdminAccount(kafkaMessage);
+                break;
+            case "getAllUsers":
+                userQueryService.processGetAllUsers(kafkaMessage);
+                break;
+            case "getUserAdminDashboardData":
+                userQueryService.processGetUserAdminDashboardData(kafkaMessage);
+                break;
+            case "rateApplication":
+                feedbackService.processRateApplication(kafkaMessage);
+                break;
+            case "updateUserLocation":
+                userProfileService.processUpdateUserLocation(kafkaMessage);
+                break;
+            default:
+                log.warn("Unknown operation: {}", operationKey);
+                break;
         }
     }
 
