@@ -5,6 +5,8 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
 @Getter
 @Setter
 @Component
@@ -12,7 +14,6 @@ import org.springframework.stereotype.Component;
 public class EnvConfiguration {
     private String appEmail;
     private String databaseName;
-    private String defaultProfileImage;
     private String elasticsearchPassword;
     private String elasticsearchUrl;
     private String elasticsearchUsername;

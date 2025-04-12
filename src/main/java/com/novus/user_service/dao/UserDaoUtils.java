@@ -27,4 +27,5 @@ public class UserDaoUtils {
     public void deleteUser(User authenticatedUser) {
         userDao.delete(authenticatedUser);
     }
+
 }

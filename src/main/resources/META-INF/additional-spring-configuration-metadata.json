@@ -11,11 +11,6 @@
       "description": "Description for supmap.properties.database-name."
     },
     {
-      "name": "supmap.properties.default-profile-image",
-      "type": "java.lang.String",
-      "description": "Description for supmap.properties.default-profile-image."
-    },
-    {
       "name": "supmap.properties.elasticsearch-password",
       "type": "java.lang.String",
       "description": "Description for supmap.properties.elasticsearch-password."

@@ -109,10 +109,48 @@ public class UserProfileService {
     }
 
     public void processSetUserProfileImage(KafkaMessage kafkaMessage) {
-        log.info("Processing setUserProfileImage for user: {}", kafkaMessage.getAuthenticatedUser().getUsername());
+        User authenticatedUser = kafkaMessage.getAuthenticatedUser();
 
-        Map<String, String> request = kafkaMessage.getRequest();
-        String fileAsBase64 = request.get("file");
+        try {
+            Map<String, String> request = kafkaMessage.getRequest();
+            String imageUrl = request.get("imageUrl");
+
+            authenticatedUser.setProfileImage(imageUrl);
+            authenticatedUser.setUpdatedAt(new Date());
+            authenticatedUser.setLastActivityDate(new Date());
+
+            userDaoUtils.save(authenticatedUser);
+
+            logUtils.buildAndSaveLog(
+                    LogLevel.INFO,
+                    "SET_USER_PROFILE_IMAGE_SUCCESS",
+                    kafkaMessage.getIpAddress(),
+                    String.format("Updated profile image for user: %s", authenticatedUser.getUsername()),
+                    HttpMethod.PUT,
+                    "/users/profile-image",
+                    "user-service",
+                    null,
+                    authenticatedUser.getId()
+            );
+        } catch (Exception e) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            String stackTrace = sw.toString();
+
+            logUtils.buildAndSaveLog(
+                    LogLevel.ERROR,
+                    "SET_USER_PROFILE_IMAGE_ERROR",
+                    kafkaMessage.getIpAddress(),
+                    "Error updating user profile image: " + e.getMessage(),
+                    HttpMethod.PUT,
+                    "/users/profile-image",
+                    "user-service",
+                    stackTrace,
+                    authenticatedUser.getId()
+            );
+            throw new RuntimeException("Failed to update user profile image: " + e.getMessage(), e);
+        }
     }
 
     public void processUpdateUserLocation(KafkaMessage kafkaMessage) {

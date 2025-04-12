@@ -8,7 +8,6 @@ services:
     environment:
       - APP_EMAIL=${{ shared.APP_EMAIL }}
       - DATABASE_NAME=${{ shared.DATABASE_NAME }}
-      - DEFAULT_PROFILE_IMAGE=${{ shared.DEFAULT_PROFILE_IMAGE }}
       - ELASTICSEARCH_PASSWORD=${{ shared.ELASTICSEARCH_PASSWORD }}
       - ELASTICSEARCH_URL=${{ shared.ELASTICSEARCH_URL }}
       - ELASTICSEARCH_USERNAME=${{ shared.ELASTICSEARCH_USERNAME }}
