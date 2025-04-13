@@ -4,6 +4,7 @@ import com.novus.shared_models.common.Kafka.KafkaMessage;
 import com.novus.shared_models.common.Log.HttpMethod;
 import com.novus.shared_models.common.Log.LogLevel;
 import com.novus.shared_models.common.User.User;
+import com.novus.user_service.configuration.DateConfiguration;
 import com.novus.user_service.dao.UserDaoUtils;
 import com.novus.user_service.utils.LogUtils;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +13,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Date;
 
 @Slf4j
 @Service
@@ -21,12 +21,13 @@ public class UserQueryService {
 
     private final LogUtils logUtils;
     private final UserDaoUtils userDaoUtils;
+    private final DateConfiguration dateConfiguration;
 
     public void processGetAllUsers(KafkaMessage kafkaMessage) {
         User authenticatedUser = kafkaMessage.getAuthenticatedUser();
 
         try {
-            authenticatedUser.setLastActivityDate(new Date());
+            authenticatedUser.setLastActivityDate(dateConfiguration.newDate());
             userDaoUtils.save(authenticatedUser);
 
             logUtils.buildAndSaveLog(
@@ -35,7 +36,7 @@ public class UserQueryService {
                     kafkaMessage.getIpAddress(),
                     String.format("User with ID '%s' called processGetAllUsers method", authenticatedUser.getId()),
                     HttpMethod.GET,
-                    "/users",
+                    "/private/admin/users",
                     "user-service",
                     null,
                     authenticatedUser.getId()
@@ -52,7 +53,7 @@ public class UserQueryService {
                     kafkaMessage.getIpAddress(),
                     "Error processing get all users request: " + e.getMessage(),
                     HttpMethod.GET,
-                    "/users",
+                    "/private/admin/users",
                     "user-service",
                     stackTrace,
                     authenticatedUser.getId()
@@ -65,7 +66,7 @@ public class UserQueryService {
         User authenticatedUser = kafkaMessage.getAuthenticatedUser();
 
         try {
-            authenticatedUser.setLastActivityDate(new Date());
+            authenticatedUser.setLastActivityDate(dateConfiguration.newDate());
             userDaoUtils.save(authenticatedUser);
 
             logUtils.buildAndSaveLog(
@@ -74,7 +75,7 @@ public class UserQueryService {
                     kafkaMessage.getIpAddress(),
                     "Successfully retrieved admin dashboard data",
                     HttpMethod.GET,
-                    "/users/admin-dashboard",
+                    "/private/admin/user/dashboard-data",
                     "user-service",
                     null,
                     authenticatedUser.getId()
@@ -91,7 +92,7 @@ public class UserQueryService {
                     kafkaMessage.getIpAddress(),
                     "Error processing get admin dashboard data request: " + e.getMessage(),
                     HttpMethod.GET,
-                    "/users/admin-dashboard",
+                    "/private/admin/user/dashboard-data",
                     "user-service",
                     stackTrace,
                     authenticatedUser.getId()

@@ -1,13 +1,12 @@
 package com.novus.user_service.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.novus.shared_models.GeoPoint;
 import com.novus.shared_models.common.Kafka.KafkaMessage;
 import com.novus.shared_models.common.Log.HttpMethod;
 import com.novus.shared_models.common.Log.LogLevel;
 import com.novus.shared_models.common.User.User;
+import com.novus.user_service.configuration.DateConfiguration;
+import com.novus.user_service.configuration.EnvConfiguration;
 import com.novus.user_service.dao.UserDaoUtils;
 import com.novus.user_service.utils.LogUtils;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Date;
 import java.util.Map;
 
 @Slf4j
@@ -26,13 +24,16 @@ public class UserProfileService {
 
     private final LogUtils logUtils;
     private final UserDaoUtils userDaoUtils;
-    private final ObjectMapper objectMapper;
+    private final EnvConfiguration envConfiguration;
+    private final JwtTokenService jwtTokenService;
+    private final EmailService emailService;
+    private final DateConfiguration dateConfiguration;
 
     public void processGetAuthenticatedUserDetails(KafkaMessage kafkaMessage) {
         User authenticatedUser = kafkaMessage.getAuthenticatedUser();
 
         try {
-            authenticatedUser.setLastActivityDate(new Date());
+            authenticatedUser.setLastActivityDate(dateConfiguration.newDate());
 
             userDaoUtils.save(authenticatedUser);
 
@@ -42,7 +43,7 @@ public class UserProfileService {
                     kafkaMessage.getIpAddress(),
                     String.format("Retrieved details for user: %s", authenticatedUser.getUsername()),
                     HttpMethod.GET,
-                    "/users/details",
+                    "/private/user",
                     "user-service",
                     null,
                     authenticatedUser.getId()
@@ -59,7 +60,7 @@ public class UserProfileService {
                     kafkaMessage.getIpAddress(),
                     "Error logging user details request: " + e.getMessage(),
                     HttpMethod.GET,
-                    "/users/details",
+                    "/private/user",
                     "user-service",
                     stackTrace,
                     authenticatedUser.getId()
@@ -71,8 +72,17 @@ public class UserProfileService {
         User authenticatedUser = kafkaMessage.getAuthenticatedUser();
 
         try {
-            authenticatedUser.setLastActivityDate(new Date());
-            authenticatedUser.setUpdatedAt(new Date());
+            Map<String, String> request = kafkaMessage.getRequest();
+            boolean hasUpdatedEmail = Boolean.parseBoolean(request.get("hasUpdatedEmail"));
+
+            authenticatedUser.setLastActivityDate(dateConfiguration.newDate());
+            authenticatedUser.setUpdatedAt(dateConfiguration.newDate());
+
+            if (hasUpdatedEmail) {
+                authenticatedUser.setValidEmail(false);
+                String emailConfirmationToken = jwtTokenService.generateEmailConfirmationToken(authenticatedUser.getId());
+                emailService.sendEmail(authenticatedUser.getEmail(), "Confirm your Supmap account", getAccountRegistrationEmail(emailConfirmationToken, authenticatedUser.getUsername()));
+            }
 
             userDaoUtils.save(authenticatedUser);
 
@@ -82,7 +92,7 @@ public class UserProfileService {
                     kafkaMessage.getIpAddress(),
                     String.format("Updated details for user: %s", authenticatedUser.getUsername()),
                     HttpMethod.PUT,
-                    "/users/details",
+                    "/private/user",
                     "user-service",
                     null,
                     authenticatedUser.getId()
@@ -99,7 +109,7 @@ public class UserProfileService {
                     kafkaMessage.getIpAddress(),
                     "Error updating user details: " + e.getMessage(),
                     HttpMethod.PUT,
-                    "/users/details",
+                    "/private/user",
                     "user-service",
                     stackTrace,
                     authenticatedUser.getId()
@@ -116,8 +126,8 @@ public class UserProfileService {
             String imageUrl = request.get("imageUrl");
 
             authenticatedUser.setProfileImage(imageUrl);
-            authenticatedUser.setUpdatedAt(new Date());
-            authenticatedUser.setLastActivityDate(new Date());
+            authenticatedUser.setUpdatedAt(dateConfiguration.newDate());
+            authenticatedUser.setLastActivityDate(dateConfiguration.newDate());
 
             userDaoUtils.save(authenticatedUser);
 
@@ -127,7 +137,7 @@ public class UserProfileService {
                     kafkaMessage.getIpAddress(),
                     String.format("Updated profile image for user: %s", authenticatedUser.getUsername()),
                     HttpMethod.PUT,
-                    "/users/profile-image",
+                    "/private/user/profile-image",
                     "user-service",
                     null,
                     authenticatedUser.getId()
@@ -144,7 +154,7 @@ public class UserProfileService {
                     kafkaMessage.getIpAddress(),
                     "Error updating user profile image: " + e.getMessage(),
                     HttpMethod.PUT,
-                    "/users/profile-image",
+                    "/private/user/profile-image",
                     "user-service",
                     stackTrace,
                     authenticatedUser.getId()
@@ -158,27 +168,8 @@ public class UserProfileService {
 
         try {
             Map<String, String> request = kafkaMessage.getRequest();
-            String locationStr = request.get("location");
-
-            if (locationStr == null || locationStr.isEmpty()) {
-                throw new IllegalArgumentException("Location cannot be empty");
-            }
-
-            Double latitude;
-            Double longitude;
-
-            try {
-                JsonNode locationNode = objectMapper.readTree(locationStr);
-
-                if (locationNode.has("latitude") && locationNode.has("longitude")) {
-                    latitude = locationNode.get("latitude").asDouble();
-                    longitude = locationNode.get("longitude").asDouble();
-                } else {
-                    throw new IllegalArgumentException("Location must contain latitude and longitude");
-                }
-            } catch (JsonProcessingException e) {
-                throw new IllegalArgumentException("Invalid location format: " + locationStr);
-            }
+            double latitude = Double.parseDouble(request.get("latitude"));
+            double longitude = Double.parseDouble(request.get("longitude"));
 
             GeoPoint newLocation = GeoPoint.builder()
                     .latitude(latitude)
@@ -186,7 +177,8 @@ public class UserProfileService {
                     .build();
 
             authenticatedUser.setLastKnownLocation(newLocation);
-            authenticatedUser.setLastActivityDate(new Date());
+            authenticatedUser.setLastActivityDate(dateConfiguration.newDate());
+            authenticatedUser.setUpdatedAt(dateConfiguration.newDate());
 
             userDaoUtils.save(authenticatedUser);
 
@@ -196,7 +188,7 @@ public class UserProfileService {
                     kafkaMessage.getIpAddress(),
                     String.format("Updated location for user: %s to [lat: %f, lng: %f]", authenticatedUser.getUsername(), latitude, longitude),
                     HttpMethod.PUT,
-                    "/users/location",
+                    "/private/user/location",
                     "user-service",
                     null,
                     authenticatedUser.getId()
@@ -213,13 +205,61 @@ public class UserProfileService {
                     kafkaMessage.getIpAddress(),
                     "Error updating user location: " + e.getMessage(),
                     HttpMethod.PUT,
-                    "/users/location",
+                    "/private/user/location",
                     "user-service",
                     stackTrace,
                     authenticatedUser.getId()
             );
             throw new RuntimeException("Failed to update user location: " + e.getMessage(), e);
         }
+    }
+
+    public String getAccountRegistrationEmail(String emailConfirmationToken, String username) {
+        String confirmationLink = envConfiguration.getMailRegisterConfirmationLink() + emailConfirmationToken;
+
+        return "<!DOCTYPE html>\n" +
+                "<html lang=\"en\">\n" +
+                "<head>\n" +
+                "    <meta charset=\"UTF-8\">\n" +
+                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+                "    <title>Welcome to SupMap!</title>\n" +
+                "</head>\n" +
+                "<body style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;\">\n" +
+                "    <div style=\"text-align: center; margin-bottom: 20px;\">\n" +
+                "        <img src=\"https://i.ibb.co/NLf7Xgw/supmap-without-text.png\" alt=\"SupMap Logo\" style=\"max-width: 150px; height: auto;\">\n" +
+                "    </div>\n" +
+                "    <div style=\"background-color: #f9f9f9; padding: 20px; border-radius: 5px; border-left: 4px solid #4285f4;\">\n" +
+                "        <h2 style=\"color: #4285f4; margin-top: 0;\">Welcome " + username + "!</h2>\n" +
+                "        <p>Thank you for signing up for SupMap. We are thrilled to have you on board!</p>\n" +
+                "        <p>To complete your registration and activate your account, please click the button below:</p>\n" +
+                "        <div style=\"text-align: center; margin: 30px 0;\">\n" +
+                "            <a href=\"" + confirmationLink + "\" style=\"background-color: #4285f4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;\">Confirm my email</a>\n" +
+                "        </div>\n" +
+                "        <p>If the button does not work, you can also copy and paste the following link into your browser:</p>\n" +
+                "        <p style=\"background-color: #f0f0f0; padding: 10px; border-radius: 5px; word-break: break-all;\"><a href=\"" + confirmationLink + "\" style=\"color: #4285f4; text-decoration: none;\">" + confirmationLink + "</a></p>\n" +
+                "        <p><strong>Important:</strong> This link will expire in 48 hours for security reasons.</p>\n" +
+                "        <p>With SupMap, you will be able to:</p>\n" +
+                "        <ul style=\"background-color: #fff; padding: 15px; border-radius: 5px; margin: 15px 0; border: 1px solid #ddd;\">\n" +
+                "            <li>Simplify your route management</li>\n" +
+                "            <li>Optimize your mapping projects</li>\n" +
+                "            <li>Access exclusive features</li>\n" +
+                "            <li>Collaborate with your team</li>\n" +
+                "        </ul>\n" +
+                "        <p>If you did not create an account on SupMap, please ignore this email.</p>\n" +
+                "    </div>\n" +
+                "    <div style=\"margin-top: 30px; font-size: 14px; color: #666; border-top: 1px solid #ddd; padding-top: 20px;\">\n" +
+                "        <p>Best regards,<br>\n" +
+                "        The SupMap Team</p>\n" +
+                "        <div style=\"margin-top: 15px;\">\n" +
+                "            <p>SupMap - Simplify your routes and projects.</p>\n" +
+                "            <p>📞 Support: <a href=\"tel:+33614129625\" style=\"color: #4285f4; text-decoration: none;\">+33 6 14 12 96 25</a><br>\n" +
+                "            📩 Email: <a href=\"mailto:supmap.application@gmail.com\" style=\"color: #4285f4; text-decoration: none;\">supmap.application@gmail.com</a><br>\n" +
+                "            🌐 Website: <a href=\"https://supmap-application.com\" style=\"color: #4285f4; text-decoration: none;\">https://supmap-application.com</a><br>\n" +
+                "            📱 Available on iOS and Android!</p>\n" +
+                "        </div>\n" +
+                "    </div>\n" +
+                "</body>\n" +
+                "</html>";
     }
 
 }

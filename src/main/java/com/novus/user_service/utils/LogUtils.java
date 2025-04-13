@@ -4,11 +4,10 @@ import com.novus.shared_models.common.Log.HttpMethod;
 import com.novus.shared_models.common.Log.Log;
 import com.novus.shared_models.common.Log.LogLevel;
 import com.novus.user_service.UuidProvider;
+import com.novus.user_service.configuration.DateConfiguration;
 import com.novus.user_service.dao.LogDaoUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-
-import java.util.Date;
 
 @Component
 @RequiredArgsConstructor
@@ -16,6 +15,7 @@ public class LogUtils {
 
     private final UuidProvider uuidProvider;
     private final LogDaoUtils logDaoUtils;
+    private final DateConfiguration dateConfiguration;
 
     public void buildAndSaveLog(LogLevel logLevel, String action, String ipAddress, String message, HttpMethod httpMethod,
                                 String requestPath, String service, String stackTrace, String userId) {
@@ -30,7 +30,7 @@ public class LogUtils {
                 .requestPath(requestPath)
                 .service(service)
                 .stackTrace(stackTrace)
-                .timestamp(new Date())
+                .timestamp(dateConfiguration.newDate())
                 .userId(userId)
                 .build();
 

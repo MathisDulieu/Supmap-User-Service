@@ -5,6 +5,7 @@ import com.novus.shared_models.common.Kafka.KafkaMessage;
 import com.novus.shared_models.common.Log.HttpMethod;
 import com.novus.shared_models.common.Log.LogLevel;
 import com.novus.shared_models.common.User.User;
+import com.novus.user_service.configuration.DateConfiguration;
 import com.novus.user_service.dao.AdminDashboardDaoUtils;
 import com.novus.user_service.dao.UserDaoUtils;
 import com.novus.user_service.utils.LogUtils;
@@ -14,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
 
@@ -26,6 +26,7 @@ public class FeedbackService {
     private final AdminDashboardDaoUtils adminDashboardDaoUtils;
     private final LogUtils logUtils;
     private final UserDaoUtils userDaoUtils;
+    private final DateConfiguration dateConfiguration;
 
     public void processRateApplication(KafkaMessage kafkaMessage) {
         User authenticatedUser = kafkaMessage.getAuthenticatedUser();
@@ -52,7 +53,7 @@ public class FeedbackService {
                     dashboard.getTotalRoutesProposed()
             );
 
-            authenticatedUser.setLastActivityDate(new Date());
+            authenticatedUser.setLastActivityDate(dateConfiguration.newDate());
             userDaoUtils.save(authenticatedUser);
 
             logUtils.buildAndSaveLog(
@@ -62,7 +63,7 @@ public class FeedbackService {
                     String.format("User %s rated the application with a %d-star rating",
                             authenticatedUser.getUsername(), rate),
                     HttpMethod.POST,
-                    "/users/rate-application",
+                    "/private/user/app/rate",
                     "user-service",
                     null,
                     authenticatedUser.getId()
@@ -79,7 +80,7 @@ public class FeedbackService {
                     kafkaMessage.getIpAddress(),
                     "Error processing application rating: " + e.getMessage(),
                     HttpMethod.POST,
-                    "/users/rate-application",
+                    "/private/user/app/rate",
                     "user-service",
                     stackTrace,
                     authenticatedUser.getId()
@@ -88,7 +89,7 @@ public class FeedbackService {
         }
     }
 
-    public Map<Integer, Double> calculateNewRating(Map<Integer, Double> appRatingByNumberOfRate, int rate) {
+    private Map<Integer, Double> calculateNewRating(Map<Integer, Double> appRatingByNumberOfRate, int rate) {
         Map.Entry<Integer, Double> entry = appRatingByNumberOfRate.entrySet().iterator().next();
         int numberOfRates = entry.getKey() + 1;
         double totalRating = entry.getValue() * entry.getKey() + rate;

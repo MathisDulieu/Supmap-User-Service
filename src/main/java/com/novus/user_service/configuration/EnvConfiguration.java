@@ -5,8 +5,6 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
-
 @Getter
 @Setter
 @Component
@@ -20,4 +18,7 @@ public class EnvConfiguration {
     private String kafkaBootstrapServers;
     private String mailPassword;
     private String mongoUri;
+    private String mailRegisterConfirmationLink;
+    private String jwtSecret;
+    private String mailModifiedUsername;
 }

@@ -3,47 +3,57 @@
     {
       "name": "supmap.properties.app-email",
       "type": "java.lang.String",
-      "description": "Description for supmap.properties.app-email."
+      "description": "Email address used as the sender for all outgoing communication from the application, including notifications, alerts, and system messages."
     },
     {
       "name": "supmap.properties.database-name",
       "type": "java.lang.String",
-      "description": "Description for supmap.properties.database-name."
+      "description": "Name of the MongoDB database used by the application for storing data, collections, and documents."
     },
     {
       "name": "supmap.properties.elasticsearch-password",
       "type": "java.lang.String",
-      "description": "Description for supmap.properties.elasticsearch-password."
+      "description": "Password credential for authenticating with the Elasticsearch service used for advanced search capabilities."
     },
     {
       "name": "supmap.properties.elasticsearch-url",
       "type": "java.lang.String",
-      "description": "Description for supmap.properties.elasticsearch-url."
+      "description": "URL endpoint for connecting to the Elasticsearch service that powers search functionality and data indexing."
     },
     {
       "name": "supmap.properties.elasticsearch-username",
       "type": "java.lang.String",
-      "description": "Description for supmap.properties.elasticsearch-username."
+      "description": "Username credential for authenticating with the Elasticsearch service for secure search operations."
     },
     {
       "name": "supmap.properties.kafka-bootstrap-servers",
       "type": "java.lang.String",
-      "description": "Description for supmap.properties.kafka-bootstrap-servers."
+      "description": "List of host:port pairs for establishing the initial connection to the Kafka cluster for event streaming and messaging."
     },
     {
       "name": "supmap.properties.mail-modified-username",
       "type": "java.lang.String",
-      "description": "Description for supmap.properties.mail-modified-username."
+      "description": "Modified username for the email service account, used for SMTP authentication with specific email providers requiring format adjustments."
     },
     {
       "name": "supmap.properties.mail-password",
       "type": "java.lang.String",
-      "description": "Description for supmap.properties.mail-password."
+      "description": "Password for authenticating with the SMTP email server to send transactional emails and notifications."
+    },
+    {
+      "name": "supmap.properties.mail-register-confirmation-link",
+      "type": "java.lang.String",
+      "description": "URL template for the account confirmation link sent to users via email during the registration process."
+    },
+    {
+      "name": "supmap.properties.jwt-secret",
+      "type": "java.lang.String",
+      "description": "Secret key used for signing JWT tokens to ensure their integrity and authenticity in the authentication process."
     },
     {
       "name": "supmap.properties.mongo-uri",
       "type": "java.lang.String",
-      "description": "Description for supmap.properties.mongo-uri."
+      "description": "Connection string URI for connecting to the MongoDB database server, including authentication credentials and connection parameters."
     }
   ]
 }

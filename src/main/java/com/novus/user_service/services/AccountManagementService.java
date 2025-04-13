@@ -6,6 +6,7 @@ import com.novus.shared_models.common.Log.LogLevel;
 import com.novus.shared_models.common.User.User;
 import com.novus.shared_models.common.User.UserRole;
 import com.novus.user_service.UuidProvider;
+import com.novus.user_service.configuration.DateConfiguration;
 import com.novus.user_service.dao.UserDaoUtils;
 import com.novus.user_service.utils.LogUtils;
 import lombok.RequiredArgsConstructor;
@@ -14,11 +15,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
-
-import static java.util.Objects.isNull;
 
 @Slf4j
 @Service
@@ -28,6 +26,7 @@ public class AccountManagementService {
     private final UserDaoUtils userDaoUtils;
     private final LogUtils logUtils;
     private final UuidProvider uuidProvider;
+    private final DateConfiguration dateConfiguration;
 
     public void processDeleteAuthenticatedUserAccount(KafkaMessage kafkaMessage) {
         User authenticatedUser = kafkaMessage.getAuthenticatedUser();
@@ -46,7 +45,7 @@ public class AccountManagementService {
                     kafkaMessage.getIpAddress(),
                     String.format("User %s successfully deleted their account", authenticatedUser.getUsername()),
                     HttpMethod.DELETE,
-                    "/users/account",
+                    "/private/user",
                     "user-service",
                     null,
                     authenticatedUser.getId()
@@ -63,7 +62,7 @@ public class AccountManagementService {
                     kafkaMessage.getIpAddress(),
                     "Error deleting user account: " + e.getMessage(),
                     HttpMethod.DELETE,
-                    "/users/account",
+                    "/private/user",
                     "user-service",
                     stackTrace,
                     authenticatedUser.getId()
@@ -93,7 +92,10 @@ public class AccountManagementService {
                     .role(UserRole.ADMIN)
                     .build();
 
+            authenticatedUser.setLastActivityDate(dateConfiguration.newDate());
+
             userDaoUtils.save(adminUser);
+            userDaoUtils.save(authenticatedUser);
 
             logUtils.buildAndSaveLog(
                     LogLevel.INFO,
@@ -101,7 +103,7 @@ public class AccountManagementService {
                     kafkaMessage.getIpAddress(),
                     String.format("Admin account created for username: %s with ID: %s", username, adminUser.getId()),
                     HttpMethod.POST,
-                    "/admin/account",
+                    "/protected/user/create-admin",
                     "user-service",
                     null,
                     authenticatedUser.getId()
@@ -118,7 +120,7 @@ public class AccountManagementService {
                     kafkaMessage.getIpAddress(),
                     "Error creating admin account: " + e.getMessage(),
                     HttpMethod.POST,
-                    "/admin/account",
+                    "/protected/user/create-admin",
                     "user-service",
                     stackTrace,
                     authenticatedUser.getId()
@@ -134,16 +136,12 @@ public class AccountManagementService {
             Map<String, String> request = kafkaMessage.getRequest();
             String userId = request.get("userId");
 
-            if (isNull(userId)) {
-                throw new IllegalArgumentException("Invalid userId provided");
-            }
-
             Optional<User> optionalUser = userDaoUtils.findById(userId);
             if (optionalUser.isEmpty()) {
                 throw new IllegalArgumentException("User not found with id : " + userId);
             }
 
-            authenticatedUser.setLastActivityDate(new Date());
+            authenticatedUser.setLastActivityDate(dateConfiguration.newDate());
             userDaoUtils.save(authenticatedUser);
 
             userDaoUtils.deleteUser(optionalUser.get());
@@ -154,7 +152,7 @@ public class AccountManagementService {
                     kafkaMessage.getIpAddress(),
                     String.format("Admin account deleted for user with ID: %s", userId),
                     HttpMethod.DELETE,
-                    "/admin/account",
+                    "/protected/user/delete-admin/{id}",
                     "user-service",
                     null,
                     authenticatedUser.getId()
@@ -171,7 +169,7 @@ public class AccountManagementService {
                     kafkaMessage.getIpAddress(),
                     "Error deleting admin account: " + e.getMessage(),
                     HttpMethod.DELETE,
-                    "/admin/account",
+                    "/protected/user/delete-admin/{id}",
                     "user-service",
                     stackTrace,
                     authenticatedUser.getId()

@@ -18,4 +18,6 @@ services:
       - NEXUS_URL=${{ shared.NEXUS_URL }}
       - NEXUS_USERNAME=${{ shared.NEXUS_USERNAME }}
       - NEXUS_PASSWORD=${{ shared.NEXUS_PASSWORD }}
+      - MAIL_REGISTER_CONFIRMATION_LINK=${{ shared.MAIL_REGISTER_CONFIRMATION_LINK }}
+      - JWT_SECRET=${{ shared.JWT_SECRET }}
     restart: always
