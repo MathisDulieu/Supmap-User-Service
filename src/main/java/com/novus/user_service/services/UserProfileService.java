@@ -78,14 +78,12 @@ public class UserProfileService {
             authenticatedUser.setLastActivityDate(dateConfiguration.newDate());
             authenticatedUser.setUpdatedAt(dateConfiguration.newDate());
 
+            userDaoUtils.save(authenticatedUser);
+
             if (hasUpdatedEmail) {
                 String emailConfirmationToken = jwtTokenService.generateEmailConfirmationToken(authenticatedUser.getId());
                 emailService.sendEmail(authenticatedUser.getEmail(), "Confirm your Supmap account", getAccountRegistrationEmail(emailConfirmationToken, authenticatedUser.getUsername()));
-                authenticatedUser.setEmail(authenticatedUser.getEmail());
-                authenticatedUser.setValidEmail(false);
             }
-
-            userDaoUtils.save(authenticatedUser);
 
             logUtils.buildAndSaveLog(
                     LogLevel.INFO,
